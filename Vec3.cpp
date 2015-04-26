@@ -24,6 +24,13 @@ Vec3 Vec3::operator- (const Vec3& v) const {
     return Vec3(m_c1 - v.m_c1, m_c2 - v.m_c2, m_c3 - v.m_c3);
 }
 
+Vec3 Vec3::operator/ (const double scalar) const {
+    if (scalar != 0)
+        return Vec3(m_c1 / scalar, m_c2 / scalar, m_c3 / scalar);
+    else
+        return Vec3(m_c1, m_c2, m_c3);
+}
+
 std::ostream& operator<< (std::ostream& os, const Vec3& v) {
     os << " (" << v.m_c1 << ", " << v.m_c2 << ", " << v.m_c3 << ") ";
     return os;
