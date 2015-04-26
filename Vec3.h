@@ -24,6 +24,7 @@ class Vec3 {
      
      Vec3 operator+ (const Vec3& v) const;
      Vec3 operator- (const Vec3& v) const;
+     Vec3 operator/ (const double scalar) const;
      
      friend std::ostream& operator<< (std::ostream& os, const Vec3& v);
      friend std::istream& operator>> (std::istream& is, Vec3& v);

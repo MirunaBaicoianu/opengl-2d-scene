@@ -15,6 +15,8 @@
 #include "Triunghi.h"
 #include "Util.h"
 #include "Masina.h"
+#include "ObstacolUpDown.h"
+#include "ObstacolSpin.h"
 
 // Pozitia ferestrei
 #define X 100
@@ -31,6 +33,8 @@
 
 
 Masina masina;
+
+std::vector<Obstacol*> obstacole;
 
 // Coordonatele de start ale circuitului
 double start_x, start_y;
@@ -53,6 +57,8 @@ std::vector<Vec3> linie_separatoare;
 // Indica daca o tasta este apasata sau nu
 bool keys[256];
 
+unsigned int nr_collisions = 0;
+
 
 // Initializeaza mediul GL si fereastra de vizualizare.
 void initGL (int argc, char** argv) {
@@ -63,6 +69,39 @@ void initGL (int argc, char** argv) {
     glutCreateWindow (TITLE);
     glMatrixMode (GL_PROJECTION);
     gluOrtho2D (0.0, WIDTH, 0.0, HEIGHT);
+}
+
+void drawCounter (void) {
+    // Fundal
+    if (nr_collisions <= 5)
+        glColor3f (0.0f, 1.0f, 0.0f);
+    else if (nr_collisions <= 20)
+        glColor3f (1.0f, 1.0f, 0.0f);
+    else
+        glColor3f (1.0f, 0.0f, 0.0f);
+
+    glRectd (WIDTH - 175, HEIGHT - 30, WIDTH - 5, HEIGHT - 5);
+
+    // Border
+    glColor3f (0.0f, 0.0f, 0.0f);
+    glBegin (GL_LINE_LOOP);
+        glVertex2f (WIDTH - 175, HEIGHT -  5);
+        glVertex2f (WIDTH -   5, HEIGHT -  5);
+        glVertex2f (WIDTH -   5, HEIGHT - 30);
+        glVertex2f (WIDTH - 175, HEIGHT - 30);
+    glEnd ();
+
+
+    // Text
+    std::string s = "Collisions: ";
+    s += std::to_string(nr_collisions);
+
+    glColor3f (0.0f, 0.0f, 0.0f);
+    glRasterPos2d (WIDTH - 165, HEIGHT - 20);
+    void* font = GLUT_BITMAP_9_BY_15;
+
+    for (std::string::iterator i = s.begin(); i != s.end(); i++)
+        glutBitmapCharacter(font, *i);
 }
 
 void draw (void) {
@@ -136,7 +175,11 @@ void draw (void) {
     double theta = masina.getTheta();
 
     // Transformari
-    glLoadIdentity();
+    /*glLoadIdentity();
+    glTranslated(x, y, 0.0f);
+    glRotated(theta - 90, 0.0f, 0.0f, 1.0f);
+    glTranslated(-x, -y, 0.0f);*/
+    glPushMatrix();
     glTranslated(x, y, 0.0f);
     glRotated(theta - 90, 0.0f, 0.0f, 1.0f);
     glTranslated(-x, -y, 0.0f);
@@ -151,6 +194,45 @@ void draw (void) {
         glVertex2d (x - 10, y - 10);
 	glEnd ();
 	
+    glPopMatrix();
+
+
+    // ------------------ OBSTACOLE ----------------------
+    glColor3f(0.0f, 0.0f, 1.0f);
+    glLineWidth(5);
+
+    double x1, y1, x2, y2;
+    double x_mij, y_mij;
+    for (int i = 0; i < obstacole.size(); i++) {
+        x1 = obstacole[i]->getA().getC1();
+        y1 = obstacole[i]->getA().getC2();
+        x2 = obstacole[i]->getB().getC1();
+        y2 = obstacole[i]->getB().getC2();
+
+        x_mij = obstacole[i]->getCenter().getC1();
+        y_mij = obstacole[i]->getCenter().getC2();
+
+        theta = obstacole[i]->getTheta();
+        
+        glPushMatrix();
+        
+        glTranslated(x_mij, y_mij, 0.0f);
+        glRotated(theta, 0.0f, 0.0f, 1.0f);
+        glTranslated(-x_mij, -y_mij, 0.0f);
+
+        glBegin(GL_LINES);
+        {
+            glVertex2d(x1, y1);
+            glVertex2d(x2, y2);
+        }
+        glEnd();
+
+        glPopMatrix();
+    }
+    // ---------------- END OBSTACOLE --------------------
+
+    drawCounter();
+
     glutSwapBuffers();
     glFlush ();
 }
@@ -164,6 +246,7 @@ void keyboardUp (unsigned char key, int x, int y) {
 }
 
 bool hasCollided () {
+    // --------------- COLIZIUNI CU CIRCUITUL -------------------
     // Coliziunea va fi testata doar intre cele doua
     // laturi (stanga si dreapta) ale masinii si circuit
     Vec3 masina_sus(masina.getX(),     masina.getY() + 5);
@@ -204,6 +287,22 @@ bool hasCollided () {
     if (Util::intersecteazaSegmente(masina_sus, masina_dr,
                                     circuit_interior[circuit_interior.size() - 1], circuit_interior[0]))
         return true;
+    // ------------- END COLIZIUNI CU CIRCUITUL -----------------
+
+
+    // --------------- COLIZIUNI CU OBSTACOLELE -------------------
+    Vec3 a, b;
+    for (int i = 0; i < obstacole.size(); i++) {
+        a = obstacole[i]->getA();
+        b = obstacole[i]->getB();
+        
+        if (Util::intersecteazaSegmente(masina_sus, masina_st, a, b))
+            return true;
+        if (Util::intersecteazaSegmente(masina_sus, masina_dr, a, b))
+            return true;
+    }
+    // ------------- END COLIZIUNI CU OBSTACOLELE -----------------
+
 
     return false;
 }
@@ -218,19 +317,27 @@ void checkInput () {
     if (keys['r']) {
         masina.setPosition(start_x, start_y);
         masina.reset();
+        nr_collisions = 0;
     }
 }
 
 void update (int t0) {
     checkInput();
 
-    if (hasCollided())
+    if (hasCollided()) {
+        nr_collisions++;
+        std::cout << "Nr. collisions: " << nr_collisions << " - "
+                  << masina.getX() << " " << masina.getY() << std::endl;
         masina.bump();
+    }
 
     int t1 = glutGet(GLUT_ELAPSED_TIME);
     int elapsedTime = t1 - t0;
 
     masina.update(elapsedTime);
+
+    for (int i = 0; i < obstacole.size(); i++)
+        obstacole[i]->update(elapsedTime);
 
     glutPostRedisplay();
 
@@ -274,6 +381,31 @@ void loadCircuit (std::string filename) {
         f >> v;
         linie_separatoare.push_back(v);
     }
+
+
+    // Load obstacole
+    f >> n;
+    obstacole.resize(n);
+    
+    int tip_obstacol;
+    Vec3 a, b;
+    double rotation_speed;
+    double up_limit, down_limit;
+    for (int i = 0; i < n; i++) {
+        f >> tip_obstacol;
+        if (tip_obstacol == 1) { // Obstacol UpDown
+            f >> a >> b >> up_limit >> down_limit;
+            obstacole[i] = new ObstacolUpDown(a, b, up_limit, down_limit);
+        } else if (tip_obstacol == 2) { // Obstacol Spin
+            f >> a >> b >> rotation_speed;
+            obstacole[i] = new ObstacolSpin(a, b, rotation_speed);
+        }
+    }
+}
+
+void destroyObstacole (void) {
+    for (int i = 0; i < obstacole.size(); i++)
+        delete obstacole[i];
 }
 
 int main (int argc, char** argv) {
@@ -288,6 +420,8 @@ int main (int argc, char** argv) {
     glutTimerFunc(1000 / FPS, update, glutGet(GLUT_ELAPSED_TIME));
 
 	glutMainLoop ();
+
+    destroyObstacole();
 
 	return 0;
 }

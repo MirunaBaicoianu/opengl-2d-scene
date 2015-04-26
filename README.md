@@ -25,3 +25,6 @@ There is also a simple collision detection system that checks whether the car hi
 
 #### Circuit 2
 ![Demo](https://cloud.githubusercontent.com/assets/5685993/6998139/02127c5a-dbdf-11e4-9833-2229ea80d05c.gif)
+
+##### Update: Obstacles + Collision counter
+![Demo-obstacles](https://cloud.githubusercontent.com/assets/5685993/7338860/36ca241e-ec62-11e4-94be-f74c51f7bf79.gif)

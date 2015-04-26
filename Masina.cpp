@@ -50,5 +50,5 @@ void Masina::update (double timeElapsed) {
 }
 
 void Masina::bump () {
-    m_speed = - (m_speed / 1.2);
+    m_speed = - (m_speed);
 }
